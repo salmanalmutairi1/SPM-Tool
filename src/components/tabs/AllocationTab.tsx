@@ -1,5 +1,6 @@
 import { useDb } from '../../hooks/useDb';
 import type { Task } from '../../types';
+import { formatTaskDuration } from '../../utils/dates';
 import ResourceChecklist from '../shared/ResourceChecklist';
 import { tableCls, tdCls, thCls } from '../shared/TableStyles';
 
@@ -48,7 +49,7 @@ export default function AllocationTab() {
               <tr key={task.id} className="hover:bg-gray-50">
                 <td className={tdCls}>{task.id}</td>
                 <td className={tdCls}>{task.name}</td>
-                <td className={tdCls}>{task.duration} days</td>
+                <td className={tdCls}>{formatTaskDuration(task)}</td>
                 <td className={tdCls}>{task.start_date}</td>
                 <td className={tdCls}>{task.finish_date}</td>
                 <td className="border border-gray-300 px-2 py-1 text-sm">

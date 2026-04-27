@@ -1,5 +1,6 @@
 import { useDb } from '../../hooks/useDb';
 import type { TaskWithResources } from '../../types';
+import { formatTaskDuration } from '../../utils/dates';
 import { tableCls, tdCls, thCls } from '../shared/TableStyles';
 
 export default function ReportTasksResourcesTab() {
@@ -43,7 +44,7 @@ export default function ReportTasksResourcesTab() {
               <tr key={row.id} className="hover:bg-gray-50">
                 <td className={tdCls}>{row.id}</td>
                 <td className={tdCls}>{row.name}</td>
-                <td className={tdCls}>{row.duration} days</td>
+                <td className={tdCls}>{formatTaskDuration(row)}</td>
                 <td className={tdCls}>{row.start_date}</td>
                 <td className={tdCls}>{row.finish_date}</td>
                 <td className={tdCls}>{row.resource_names}</td>

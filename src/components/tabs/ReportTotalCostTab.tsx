@@ -1,6 +1,7 @@
 import { useDb } from '../../hooks/useDb';
 import type { Resource, Task } from '../../types';
 import { calculateProjectCost, calculateTaskCost } from '../../utils/cost';
+import { formatTaskDuration, getCalculatedTaskDuration } from '../../utils/dates';
 import { tableCls, tdCls, thCls } from '../shared/TableStyles';
 
 interface TaskCostRow extends Task {
@@ -49,7 +50,7 @@ export default function ReportTotalCostTab() {
     GROUP BY t.id
     ORDER BY t.id
   `);
-  const taskCosts = rows.map((row) => calculateTaskCost(parseResources(row.resources_json), row.duration));
+  const taskCosts = rows.map((row) => calculateTaskCost(parseResources(row.resources_json), getCalculatedTaskDuration(row)));
   const projectTotal = calculateProjectCost(taskCosts);
 
   return (
@@ -77,7 +78,7 @@ export default function ReportTotalCostTab() {
               <tr key={row.id} className="hover:bg-gray-50">
                 <td className={tdCls}>{row.id}</td>
                 <td className={tdCls}>{row.name}</td>
-                <td className={tdCls}>{row.duration} days</td>
+                <td className={tdCls}>{formatTaskDuration(row)}</td>
                 <td className={tdCls}>{row.start_date}</td>
                 <td className={tdCls}>{row.finish_date}</td>
                 <td className={tdCls}>{row.resource_names}</td>

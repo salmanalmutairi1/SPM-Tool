@@ -2,13 +2,13 @@ import { useState, type ChangeEvent } from 'react';
 import { Check, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { useDb } from '../../hooks/useDb';
 import type { Task } from '../../types';
-import { actionButtonCls, dangerButtonCls, inputCls, primaryButtonCls, tableCls, tdCls, tdEditCls, thCls } from '../shared/TableStyles';
+import { calculateDurationFromDates, formatTaskDuration } from '../../utils/dates';
+import { actionButtonCls, dangerButtonCls, disabledInputCls, inputCls, primaryButtonCls, tableCls, tdCls, tdEditCls, thCls } from '../shared/TableStyles';
 
-type TaskForm = Omit<Task, 'id'>;
+type TaskForm = Omit<Task, 'id' | 'duration'>;
 
 const emptyForm = (): TaskForm => ({
   name: '',
-  duration: 1,
   start_date: '',
   finish_date: '',
 });
@@ -17,13 +17,15 @@ export default function TasksTab() {
   const { exec, query } = useDb();
   const [editingId, setEditingId] = useState<number | 'new' | null>(null);
   const [form, setForm] = useState<TaskForm>(emptyForm());
+  const [formError, setFormError] = useState<string | null>(null);
   const tasks = query<Task>('SELECT * FROM tasks ORDER BY id');
+  const durationResult = calculateDurationFromDates(form.start_date, form.finish_date);
 
   const startEdit = (task: Task) => {
     setEditingId(task.id);
+    setFormError(null);
     setForm({
       name: task.name,
-      duration: task.duration,
       start_date: task.start_date,
       finish_date: task.finish_date,
     });
@@ -32,26 +34,38 @@ export default function TasksTab() {
   const startNew = () => {
     setEditingId('new');
     setForm(emptyForm());
+    setFormError(null);
   };
 
   const cancel = () => {
     setEditingId(null);
     setForm(emptyForm());
+    setFormError(null);
   };
 
   const save = () => {
     const cleanName = form.name.trim();
-    if (!cleanName || !form.start_date.trim() || !form.finish_date.trim() || form.duration < 1) return;
+    const calculated = calculateDurationFromDates(form.start_date, form.finish_date);
+
+    if (!cleanName) {
+      setFormError('Task Name is required.');
+      return;
+    }
+
+    if (!calculated.ok) {
+      setFormError(calculated.message);
+      return;
+    }
 
     if (editingId === 'new') {
       exec(
         'INSERT INTO tasks (name, duration, start_date, finish_date) VALUES (?, ?, ?, ?)',
-        [cleanName, form.duration, form.start_date.trim(), form.finish_date.trim()],
+        [cleanName, calculated.duration, calculated.startDate, calculated.finishDate],
       );
     } else if (typeof editingId === 'number') {
       exec(
         'UPDATE tasks SET name = ?, duration = ?, start_date = ?, finish_date = ? WHERE id = ?',
-        [cleanName, form.duration, form.start_date.trim(), form.finish_date.trim(), editingId],
+        [cleanName, calculated.duration, calculated.startDate, calculated.finishDate, editingId],
       );
     }
 
@@ -63,37 +77,50 @@ export default function TasksTab() {
   };
 
   const updateForm = (field: keyof TaskForm) => (event: ChangeEvent<HTMLInputElement>) => {
-    const value = field === 'duration' ? Math.max(1, Number(event.target.value) || 1) : event.target.value;
-    setForm((current) => ({ ...current, [field]: value }));
+    setFormError(null);
+    setForm((current) => ({ ...current, [field]: event.target.value }));
   };
 
-  const editRow = (taskId: number | 'new') => (
-    <tr className="bg-blue-50">
-      <td className={tdEditCls}>{taskId === 'new' ? 'New' : taskId}</td>
-      <td className={tdEditCls}>
-        <input className={inputCls} value={form.name} onChange={updateForm('name')} placeholder="Task name" autoFocus />
-      </td>
-      <td className={tdEditCls}>
-        <input className={inputCls} type="number" min={1} value={form.duration} onChange={updateForm('duration')} />
-      </td>
-      <td className={tdEditCls}>
-        <input className={inputCls} value={form.start_date} onChange={updateForm('start_date')} placeholder="DD/MM/YYYY" />
-      </td>
-      <td className={tdEditCls}>
-        <input className={inputCls} value={form.finish_date} onChange={updateForm('finish_date')} placeholder="DD/MM/YYYY" />
-      </td>
-      <td className={`${tdEditCls} whitespace-nowrap`}>
-        <div className="flex gap-1">
-          <button type="button" className={actionButtonCls} onClick={save} title="Save task" aria-label="Save task">
-            <Check size={16} />
-          </button>
-          <button type="button" className={actionButtonCls} onClick={cancel} title="Cancel" aria-label="Cancel">
-            <X size={16} />
-          </button>
-        </div>
-      </td>
-    </tr>
-  );
+  const editRow = (taskId: number | 'new') => {
+    const durationText = durationResult.ok ? `${durationResult.duration} days` : 'Waiting for valid dates';
+
+    return (
+      <>
+        <tr className="bg-blue-50">
+          <td className={tdEditCls}>{taskId === 'new' ? 'New' : taskId}</td>
+          <td className={tdEditCls}>
+            <input className={inputCls} value={form.name} onChange={updateForm('name')} placeholder="Task name" autoFocus />
+          </td>
+          <td className={tdEditCls}>
+            <input className={disabledInputCls} value={durationText} readOnly aria-label="Calculated duration" />
+          </td>
+          <td className={tdEditCls}>
+            <input className={inputCls} value={form.start_date} onChange={updateForm('start_date')} placeholder="DD/MM/YYYY" />
+          </td>
+          <td className={tdEditCls}>
+            <input className={inputCls} value={form.finish_date} onChange={updateForm('finish_date')} placeholder="DD/MM/YYYY" />
+          </td>
+          <td className={`${tdEditCls} whitespace-nowrap`}>
+            <div className="flex gap-1">
+              <button type="button" className={actionButtonCls} onClick={save} title="Save task" aria-label="Save task">
+                <Check size={16} />
+              </button>
+              <button type="button" className={actionButtonCls} onClick={cancel} title="Cancel" aria-label="Cancel">
+                <X size={16} />
+              </button>
+            </div>
+          </td>
+        </tr>
+        {formError && (
+          <tr className="bg-red-50">
+            <td colSpan={6} className="border border-red-200 px-3 py-2 text-sm text-red-700">
+              {formError}
+            </td>
+          </tr>
+        )}
+      </>
+    );
+  };
 
   return (
     <section>
@@ -123,7 +150,7 @@ export default function TasksTab() {
                 <tr key={task.id} className="hover:bg-gray-50">
                   <td className={tdCls}>{task.id}</td>
                   <td className={tdCls}>{task.name}</td>
-                  <td className={tdCls}>{task.duration} days</td>
+                  <td className={tdCls}>{formatTaskDuration(task)}</td>
                   <td className={tdCls}>{task.start_date}</td>
                   <td className={tdCls}>{task.finish_date}</td>
                   <td className={`${tdCls} whitespace-nowrap`}>
