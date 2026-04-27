@@ -1,0 +1,9 @@
+export const thCls = 'border border-gray-300 bg-gray-200 px-3 py-2 text-left text-sm font-semibold text-gray-800';
+export const tdCls = 'border border-gray-300 px-3 py-1.5 text-sm text-gray-800';
+export const tdEditCls = 'border border-gray-300 px-1 py-1 text-sm';
+export const inputCls = 'h-8 w-full rounded border border-blue-400 bg-white px-2 text-sm text-gray-900 outline-none focus:ring-1 focus:ring-blue-600';
+export const disabledInputCls = 'h-8 w-full rounded border border-gray-200 bg-gray-100 px-2 text-sm text-gray-500';
+export const actionButtonCls = 'inline-flex h-8 w-8 items-center justify-center rounded border border-gray-300 bg-white text-gray-600 transition-colors hover:border-blue-500 hover:text-blue-700';
+export const primaryButtonCls = 'inline-flex h-8 items-center gap-2 rounded border border-blue-700 bg-blue-700 px-3 text-sm font-medium text-white transition-colors hover:bg-blue-800';
+export const dangerButtonCls = 'inline-flex h-8 w-8 items-center justify-center rounded border border-gray-300 bg-white text-gray-600 transition-colors hover:border-red-500 hover:text-red-700';
+export const tableCls = 'min-w-full border-collapse border border-gray-300 text-sm';
