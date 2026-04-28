@@ -1,5 +1,5 @@
 import { useDb } from '../../hooks/useDb';
-import type { Resource, Task } from '../../types';
+import type { AssignedResource, Task } from '../../types';
 import { calculateProjectCost, calculateTaskCost } from '../../utils/cost';
 import { formatTaskDuration, getCalculatedTaskDuration } from '../../utils/dates';
 import { tableCls, tdCls, thCls } from '../shared/TableStyles';
@@ -9,10 +9,10 @@ interface TaskCostRow extends Task {
   resources_json: string | null;
 }
 
-function parseResources(value: string | null): Resource[] {
+function parseResources(value: string | null): AssignedResource[] {
   if (!value) return [];
   try {
-    return JSON.parse(value) as Resource[];
+    return JSON.parse(value) as AssignedResource[];
   } catch {
     return [];
   }
@@ -31,7 +31,13 @@ export default function ReportTotalCostTab() {
       t.duration,
       t.start_date,
       t.finish_date,
-      COALESCE(GROUP_CONCAT(r.name, ', '), '-') AS resource_names,
+      COALESCE(GROUP_CONCAT(
+        CASE
+          WHEN r.type = 'Material' THEN r.name || ' (' || tr.quantity || ' ' || COALESCE(r.material_label, 'unit') || ')'
+          ELSE r.name
+        END,
+        ', '
+      ), '-') AS resource_names,
       CASE
         WHEN COUNT(r.id) = 0 THEN NULL
         ELSE json_group_array(json_object(
@@ -39,9 +45,11 @@ export default function ReportTotalCostTab() {
           'name', r.name,
           'type', r.type,
           'max_units', r.max_units,
+          'material_label', r.material_label,
           'standard_rate', r.standard_rate,
           'overtime_rate', r.overtime_rate,
-          'cost_per_use', r.cost_per_use
+          'cost_per_use', r.cost_per_use,
+          'quantity', tr.quantity
         ))
       END AS resources_json
     FROM tasks t

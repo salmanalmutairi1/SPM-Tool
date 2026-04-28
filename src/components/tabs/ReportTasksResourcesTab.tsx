@@ -12,7 +12,13 @@ export default function ReportTasksResourcesTab() {
       t.duration,
       t.start_date,
       t.finish_date,
-      COALESCE(GROUP_CONCAT(r.name, ', '), '-') AS resource_names
+      COALESCE(GROUP_CONCAT(
+        CASE
+          WHEN r.type = 'Material' THEN r.name || ' (' || tr.quantity || ' ' || COALESCE(r.material_label, 'unit') || ')'
+          ELSE r.name
+        END,
+        ', '
+      ), '-') AS resource_names
     FROM tasks t
     LEFT JOIN task_resources tr ON tr.task_id = t.id
     LEFT JOIN resources r ON r.id = tr.resource_id

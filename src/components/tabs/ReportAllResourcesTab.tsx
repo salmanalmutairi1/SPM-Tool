@@ -24,6 +24,7 @@ export default function ReportAllResourcesTab() {
               <th className={`${thCls} min-w-56`}>Resource Name</th>
               <th className={`${thCls} w-28`}>Type</th>
               <th className={`${thCls} w-40`}>Max</th>
+              <th className={`${thCls} w-36`}>Material Label</th>
               <th className={`${thCls} w-28`}>St. Rate</th>
               <th className={`${thCls} w-28`}>Ovt.</th>
               <th className={`${thCls} w-28`}>Cost/Use</th>
@@ -35,14 +36,19 @@ export default function ReportAllResourcesTab() {
                 <td className={tdCls}>{resource.name}</td>
                 <td className={tdCls}>{resource.type}</td>
                 <td className={tdCls}>{resource.max_units ?? '-'}</td>
-                <td className={tdCls}>{money(resource.standard_rate, '/hr')}</td>
+                <td className={tdCls}>{resource.material_label ?? '-'}</td>
+                <td className={tdCls}>
+                  {resource.type === 'Material'
+                    ? money(resource.standard_rate, `/${resource.material_label ?? 'unit'}`)
+                    : money(resource.standard_rate, '/hr')}
+                </td>
                 <td className={tdCls}>{money(resource.overtime_rate, '/hr')}</td>
                 <td className={tdCls}>{money(resource.cost_per_use)}</td>
               </tr>
             ))}
             {resources.length === 0 && (
               <tr>
-                <td colSpan={6} className="border border-gray-300 px-3 py-5 text-center text-sm text-gray-500">
+                <td colSpan={7} className="border border-gray-300 px-3 py-5 text-center text-sm text-gray-500">
                   No resources found.
                 </td>
               </tr>

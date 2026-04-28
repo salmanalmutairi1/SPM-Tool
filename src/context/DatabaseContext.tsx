@@ -44,6 +44,73 @@ function base64ToBytes(value: string): Uint8Array {
   return Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
 }
 
+function tableHasColumn(database: Database, tableName: string, columnName: string): boolean {
+  const result = database.exec(`PRAGMA table_info(${tableName})`);
+  if (!result.length) return false;
+  const nameIndex = result[0].columns.indexOf('name');
+  return result[0].values.some((row) => row[nameIndex] === columnName);
+}
+
+function migrateResourcesTable(database: Database) {
+  const result = database.exec("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'resources'");
+  const createSql = String(result[0]?.values[0]?.[0] ?? '');
+  const hasMaterialType = createSql.includes("'Material'");
+  const hasMaterialLabel = tableHasColumn(database, 'resources', 'material_label');
+
+  if (hasMaterialType && hasMaterialLabel) return;
+
+  database.run('PRAGMA foreign_keys = OFF');
+  database.run('BEGIN TRANSACTION');
+  try {
+    database.run(`
+      CREATE TABLE resources_next (
+        id             INTEGER PRIMARY KEY AUTOINCREMENT,
+        name           TEXT    NOT NULL,
+        type           TEXT    NOT NULL CHECK(type IN ('Work', 'Material', 'Cost')),
+        max_units      TEXT,
+        material_label TEXT,
+        standard_rate  REAL,
+        overtime_rate  REAL,
+        cost_per_use   REAL
+      )
+    `);
+
+    if (hasMaterialLabel) {
+      database.run(`
+        INSERT INTO resources_next (id, name, type, max_units, material_label, standard_rate, overtime_rate, cost_per_use)
+        SELECT id, name, type, max_units, material_label, standard_rate, overtime_rate, cost_per_use
+        FROM resources
+      `);
+    } else {
+      database.run(`
+        INSERT INTO resources_next (id, name, type, max_units, material_label, standard_rate, overtime_rate, cost_per_use)
+        SELECT id, name, type, max_units, NULL, standard_rate, overtime_rate, cost_per_use
+        FROM resources
+      `);
+    }
+
+    database.run('DROP TABLE resources');
+    database.run('ALTER TABLE resources_next RENAME TO resources');
+    database.run('COMMIT');
+  } catch (error) {
+    database.run('ROLLBACK');
+    throw error;
+  } finally {
+    database.run('PRAGMA foreign_keys = ON');
+  }
+}
+
+function migrateTaskResourcesTable(database: Database) {
+  if (tableHasColumn(database, 'task_resources', 'quantity')) return;
+  database.run('ALTER TABLE task_resources ADD COLUMN quantity REAL NOT NULL DEFAULT 1 CHECK(quantity >= 0)');
+}
+
+function runMigrations(database: Database) {
+  migrateResourcesTable(database);
+  migrateTaskResourcesTable(database);
+  database.run('PRAGMA foreign_keys = ON');
+}
+
 export function DatabaseProvider({ children }: { children: ReactNode }) {
   const [db, setDb] = useState<Database | null>(null);
   const [refresh, setRefresh] = useState(0);
@@ -66,6 +133,8 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
         }
 
         database.run(SCHEMA_SQL);
+        runMigrations(database);
+        localStorage.setItem(STORAGE_KEY, bytesToBase64(database.export()));
         if (!cancelled) {
           setDb(database);
         }
